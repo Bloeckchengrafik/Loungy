@@ -57,6 +57,7 @@ impl WindowStyle {
         options.titlebar = None;
         options.is_movable = false;
         options.kind = WindowKind::PopUp;
+        options.app_id = Some("loungy".into());
         options
     }
 }
@@ -78,7 +79,7 @@ impl Window {
             .detach();
             cx.observe_window_appearance(|_, cx| {
                 cx.update_global::<Theme, _>(|theme: &mut Theme, cx| {
-                    *theme = Theme::mode(cx.window_appearance());
+                    *theme = Theme::mode(WindowAppearance::VibrantDark);
                     cx.refresh();
                 });
             })

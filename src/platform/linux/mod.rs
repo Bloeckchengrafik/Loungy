@@ -18,6 +18,7 @@ use crate::paths::paths;
 
 use std::path::PathBuf;
 use std::{env, fs};
+use std::fs::OpenOptions;
 
 use super::AppData;
 
@@ -26,7 +27,14 @@ pub fn get_application_data(path: &PathBuf) -> Option<AppData> {
     if !cache_dir.exists() {
         fs::create_dir_all(cache_dir.clone()).unwrap();
     }
-    let cache = cache_dir.to_string_lossy().to_string();
+
+    let icon_cache_dir = cache_dir.join("icons");
+    if !icon_cache_dir.exists() {
+        fs::create_dir_all(icon_cache_dir.clone()).unwrap();
+    }
+
+    let _cache = cache_dir.to_string_lossy().to_string();
+
     let last = path.components().last();
     if last.is_none() {
         return None;
@@ -35,7 +43,22 @@ pub fn get_application_data(path: &PathBuf) -> Option<AppData> {
     let file_name = last.unwrap().as_os_str().to_string_lossy().to_string();
 
     let file = desktop_file::ApplicationDesktopFile::try_from(path).ok()?;
-    let icon_url: Option<PathBuf> = file.resolve_icon();
+
+    let icon_cache_file = icon_cache_dir.join(file_name.clone());
+    let icon_url: Option<PathBuf> = if icon_cache_file.exists() && icon_cache_file.is_symlink() {
+        Some(icon_cache_file)
+    } else if icon_cache_file.exists() { // TODO cache refresh after some time
+        None
+    } else {
+        let url = file.resolve_icon();
+        if let Some(url) = &url {
+            let _ = std::os::unix::fs::symlink(url, icon_cache_file);
+        } else {
+            let _ = OpenOptions::new().create(true).write(true).open(icon_cache_file);
+        }
+
+        url
+    };
 
     let icon_img = if let Some(icon) = icon_url.clone() {
         Img::default().file(icon)
